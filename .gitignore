@@ -1,0 +1,6 @@
+.idea/
+*.pyc
+client*.json
+credentials.json
+venv/
+config.py

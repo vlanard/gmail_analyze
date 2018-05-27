@@ -1,0 +1,17 @@
+# copy this file to a file called config.py and customize for your own purposes
+
+### customize the list of domains that often contain email you want to keep (like bills, personal emails, etc)
+###   domains are what occur after the @ sign in an email address;
+####  these will be ranked lower (less spammy) than non-safe domains
+SAFE_DOMAINS = ["gmail.com", "yahoo.com","email.att-mail.com", "google.com"]
+
+
+#### customize the list of emails and gmail labels to exclude from your analysis because they are emails you want to keep
+IGNORE_EMAILS = ["hit-reply@linkedin.com", "orders@eventbrite.com", "grandma@aol.com", "me@work.com"]
+IGNORE_LABELS = ["_bills"]  # any of your gmail labels that contain mail you want to keep
+
+
+### years of email you want to analyze
+EARLIEST_YEAR = 2004
+LATEST_YEAR = None  # set to None to include up to today, or set to the last year of email you want to include
+NUM_YEARS_PER_BATCH = None # set to None to summarize all emails together, else set to number of years to group, e.g. 2
