@@ -4,3 +4,4 @@ client*.json
 credentials.json
 venv/
 config.py
+todos.txt
