@@ -39,7 +39,7 @@ This will give *you* permission to access your own gmail. No one else.
 # Run the script
 Edit `config.py` repeatedly as desired and rerun with:
 
-    python analyze.py
+    python3 analyze.py
 
 To speed up testing while you figure out your desired config settings, use a small year range or 1 year batches.
 

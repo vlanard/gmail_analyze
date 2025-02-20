@@ -20,9 +20,15 @@ EARLIEST_YEAR = 2004
 LATEST_YEAR = None
 # set number of years to summarize at a time, or None to summarize once across all years
 NUM_YEARS_PER_BATCH = None
+REQUESTS_PER_BATCH = 1000  # have to throttle batching now to avoid triggering Google API rate limiting, all good things must end
+WAIT_PER_BATCH = REQUESTS_PER_BATCH / (REQUESTS_PER_BATCH*1000) # seconds between batch executions, going smaller than this doesn't really help
 
 # ====
 # how many extra examples per frequent sender you want printed
 NUM_EXAMPLES_PER_LINE = 3
 # during analysis, show progress
 NUM_EMAILS_PER_PROGRESS_UPDATE = 500
+#comment out MAX_EMAILS_TO_PARSE to do all
+MAX_EMAILS_TO_PARSE = 20000
+MIN_FREQ_TO_DISPLAY = 8
+

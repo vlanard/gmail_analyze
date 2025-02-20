@@ -3,19 +3,23 @@
 THE PURPOSE OF THIS SCRIPT IS TO IDENTIFY THE MOST HEAVY EMAIL SENDERS/OFFENDERS IN MY GMAIL,
  so I can find what to delete, make filters for, etc.
 """
-from apiclient.discovery import build
-from apiclient import errors
-from httplib2 import Http
-from oauth2client import file, client, tools
+
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient import errors
+import os
 import operator
 import sys
 import time
 from typing import Optional
 import config
 
-SCOPES = 'https://www.googleapis.com/auth/gmail.readonly'
-MIN_FREQ_TO_DISPLAY = 15  # TODO could be a threshold based on the overall count
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 HOUR_SECONDS = 60 * 60
+TOKEN_FILE = "credentials.json"
+SECRET_FILE = "client_secret.json"
 
 _service = None
 _emailSenders = {}
@@ -24,14 +28,21 @@ def init():
     # Setup the Gmail API oauth token
     # NOTE: TO CHANGE SCOPES, DELETE credentials.json file & RERUN
     global _service
-    store = file.Storage('credentials.json')
-    creds = store.get()
-    if not creds or creds.invalid:
-        flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
-        creds = tools.run_flow(flow, store)
-    _service = build('gmail', 'v1', http=creds.authorize(Http()))
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(SECRET_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open(TOKEN_FILE, "w") as token:
+            token.write(creds.to_json())
+    _service = build("gmail", "v1", credentials=creds)
     return _service
-
 
 def fetch_and_count_messages(*, service, user_id: str, query: str, token: Optional[str]):
     count = 0
@@ -47,29 +58,35 @@ def fetch_and_count_messages(*, service, user_id: str, query: str, token: Option
     if not ids:
         return count, page_token
 
-    batch = service.new_batch_http_request(callback=parseEmailHeader)
-    for id in ids:
-        batch.add(service.users().messages().get(userId='me', id=id,
-                                                 format="metadata", fields="labelIds,payload/headers"))
-    batch.execute()
+    # batching optimizing network use, but does not reduce usage against rate limits
+    last_id = len(ids)-1
+    for i,id in enumerate(ids):
+        batch = service.new_batch_http_request(callback=parseEmailHeader) # API CALL
+        request = service.users().messages().get(userId='me', id=id,
+                                                 format="metadata", fields="labelIds,payload/headers")
+        batch.add(request) # API CALL
+        if i % config.REQUESTS_PER_BATCH == 0 or i==last_id:
+            batch.execute()
+            time.sleep(config.WAIT_PER_BATCH)
     page_token = response.get('nextPageToken')
     return count, page_token
 
 
 def parseEmailHeader(request_id, response, exception):
-    global _emailSenders
-    sender = _parseEmailHeader(response)
-    if sender:
-        _emailSenders[sender] = _emailSenders.get(sender, 0) + 1
-
+    global _emailSenders, _queue
+    if exception:
+        print(exception)
+    else:
+        #print(".",end="")
+        sender = _parseEmailHeader(response)
+        if sender:
+            _emailSenders[sender] = _emailSenders.get(sender, 0) + 1
 
 def _parseEmailHeader(response)-> Optional[str]:
     headers = response['payload']['headers']
     for h in headers:
         if h['name'].lower() == "from":  # From, FROM
             return h['value']
-    # payload['headers']['Date']  #{'name': 'Date', 'value': 'Wed, 18 Apr 2018 03:43:58 +0000 (UTC)'}
-    # payload['headers']['To']
     print("Error parsing Sender", headers, id)
     return None
 
@@ -85,6 +102,7 @@ def CountMessageSendersForQuery(service, user_id, query=''):
     """
     global _emailSenders  # this sucks.
     show_status_every_n = config.NUM_EMAILS_PER_PROGRESS_UPDATE
+    max_emails_to_parse = config.MAX_EMAILS_TO_PARSE  if hasattr(config,'MAX_EMAILS_TO_PARSE') and config.MAX_EMAILS_TO_PARSE else 10000000
     try:
         count = 0
         sum, page_token = fetch_and_count_messages(
@@ -93,7 +111,7 @@ def CountMessageSendersForQuery(service, user_id, query=''):
         if count % show_status_every_n == 0:
             print(count, end=".")
         sys.stdout.flush()
-        while page_token:
+        while page_token and count < max_emails_to_parse:
             sum, page_token = fetch_and_count_messages(
                 service=service, user_id=user_id, query=query, token=page_token)
             count += sum
@@ -218,7 +236,7 @@ def normalizeSenders(senderMap, query):
     print(", ".join(("score","best_example", "sender_count", "email", "email_count", "name", "name_count",
                                 "domain", "domain_count", "more_top_examples")))
     for tup in sorted_rows:
-        if tup[0] >= MIN_FREQ_TO_DISPLAY:
+        if tup[0] >= config.MIN_FREQ_TO_DISPLAY:
             print(tup)
     print("=" * 55)
 
@@ -290,7 +308,7 @@ def get_ignore_senders_for_query():
     return " ".join(labels)
 
 
-def elapsed_pretty(elapsed_sec: int):
+def elapsed_pretty(elapsed_sec: float):
     if elapsed_sec > HOUR_SECONDS:
         hr, min = divmod(elapsed_sec, HOUR_SECONDS)
         min, sec = divmod(min, 60)
