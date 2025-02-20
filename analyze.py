@@ -18,8 +18,8 @@ import config
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
 HOUR_SECONDS = 60 * 60
-TOKEN_FILE = "credentials.json"
-SECRET_FILE = "client_secret.json"
+TOKEN_FILE = "token.json"
+SECRET_FILE = "credentials.json"
 
 _service = None
 _emailSenders = {}

@@ -7,10 +7,10 @@ I wrote this to identify emails to delete, so there are settings to ignore speci
 # One time setup
 
 ## 1. Setup Gmail API Access
-Follow steps in "Step 1" of these instructions:
-https://developers.google.com/gmail/api/quickstart/python#step_1_turn_on_the_api_name
+Follow steps in "Set up your environment" section of these instructions:
+https://developers.google.com/gmail/api/quickstart/python#set-up-environment
 
-You should have downloaded a `client_secret.json` file to the same directory as this README.
+You should have downloaded a `credentials.json` file to the same directory as this README.
 
 This will give *you* permission to access your own gmail. No one else.
 
@@ -32,16 +32,18 @@ This will give *you* permission to access your own gmail. No one else.
 
         pipenv install
 
-1. Copy `config.py.sample` to `config.py` and edit `config.py` as desired
+1. Copy `config.py.sample` to `config.py` and edit `config.py` as desired. You can revisit these settings whenever.
 
         cp config.py.sample config.py
 
 # Run the script
-Edit `config.py` repeatedly as desired and rerun with:
+Edit `config.py` repeatedly as desired and rerun script with:
 
     python3 analyze.py
 
+The first time you run this you will need to accept the oauth consent form (say yes to procced even though unsafe), which will save a token.json file to your working dir for only you and only your APIs. 
 To speed up testing while you figure out your desired config settings, use a small year range or 1 year batches.
+Note that Google rate limits now (vs when this was first written) so there is some intentional throttling added in 2025 to avoid tripping the blocks and getting locked out. 
 
 # Reference Guides
 
