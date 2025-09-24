@@ -34,13 +34,22 @@ def init():
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"Token refresh failed: {e}")
+                print("Running new authentication flow...")
+                # Token refresh failed, run the flow again
+                creds = None
+
+        if not creds:
             flow = InstalledAppFlow.from_client_secrets_file(SECRET_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
+
         # Save the credentials for the next run
         with open(TOKEN_FILE, "w") as token:
             token.write(creds.to_json())
+
     _service = build("gmail", "v1", credentials=creds)
     return _service
 
@@ -285,17 +294,27 @@ def parseSender(sender):
             domain = parts[1]
     return email, name, domain
 
+def get_labels_for_query(config_labels,exclude=False):
+    # Exclude Example:  -{label:exclude1 label:exclude2}
+    # Include Example:  {label:include1 label:include2}
 
-def get_ignore_labels_for_query():
-    # Example:  -{label:exclude1 label:exclude2}
-    if not config.IGNORE_LABELS:
+    if not config_labels:
         return ""
-    labels = ["-{"]
-    for l in config.IGNORE_LABELS:
+    if exclude:
+        labels = ["-{"]
+    else:
+        labels = []
+    for l in config_labels:
         labels.append(f"label:{l}")
-    labels.append("}")
+    if exclude:
+        labels.append("}")
     return " ".join(labels)
 
+def get_categories_for_query():
+    output = ["-{"]
+    for c in config.INCLUDE_CATEGORIES:
+        output.append(f"category:{c}")
+    return " ".join(output)
 
 def get_ignore_senders_for_query():
     # Example:  -{from:safe1@b.com from:safe2@b.com}
@@ -330,12 +349,13 @@ if __name__ == '__main__':
     interval = config.NUM_YEARS_PER_BATCH or 50
     end = min(end, (thisyear + 1))
 
-    ignore_labels = get_ignore_labels_for_query()
+    ignore_labels = get_labels_for_query(config_labels=config.IGNORE_LABELS,exclude=True)
     ignore_senders = get_ignore_senders_for_query()
+    only_labels = get_categories_for_query()
     while start < end:
         before = min(start + interval, end)
         # example filter:  after:2004 before:2005  = 1 full year
-        CountMessageSendersForQuery(service, 'me', query=f"after:{start} before:{before} {ignore_senders} {ignore_labels}")
+        CountMessageSendersForQuery(service, 'me', query=f"after:{start} before:{before} {only_labels} {ignore_senders} {ignore_labels}")
         start += interval
     endtime = time.time()
     elapsed = endtime - starttime

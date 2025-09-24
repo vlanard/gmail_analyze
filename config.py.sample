@@ -9,10 +9,10 @@ SAFE_DOMAINS = ["gmail.com", "yahoo.com", "email.att-mail.com", "google.com"]
 # customize the list of emails and gmail labels to exclude from your analysis because they are emails you want to keep
 IGNORE_EMAILS = ["hit-reply@linkedin.com",
                  "orders@eventbrite.com", "grandma@aol.com", "me@work.com"]
-# any of your gmail labels that contain mail you want to keep
-IGNORE_LABELS = ["_bills"]
+IGNORE_LABELS = ["_invoices"] # None to analyze ALL email, else a list of labels you want to exclude from analysis (you will keep these)=
+INCLUDE_LABELS = [] # None to analyze ALL email, else a list of ONLY labels you want to include in analysis
+INCLUDE_CATEGORIES = ["updates"]  # None to include ALL, else a list of ONLY the categories you want to analyze, e.g.  ["updates", "promotions"]
 
-# =====
 # years of email you want to analyze
 # =====
 EARLIEST_YEAR = 2004
